@@ -1,0 +1,2 @@
+# platform
+EKS Platform manifests
