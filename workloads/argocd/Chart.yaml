@@ -1,0 +1,8 @@
+apiVersion: v2
+name: argocd-config
+description: >-
+  Config-only overlay for the Helm-installed Argo CD. Renders two ConfigMaps
+  carrying only the keys this repo should own (application.resourceTrackingMethod
+  and policy.default). Does NOT install or manage Argo CD itself.
+type: application
+version: 0.1.0

@@ -1,0 +1,39 @@
+# Child Application (app-of-apps): Argo CD's own config.
+#
+# Source is a local Helm chart at workloads/argocd/ that renders ONLY two keys.
+# The Argo CD install itself is a Helm release managed outside this repo and is
+# NOT recreated here. ServerSideApply=true means Git owns just those two fields;
+# Helm keeps the rest of each ConfigMap.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/asaf-refaeli/platform.git
+    targetRevision: main
+    path: workloads/argocd
+    helm:
+      releaseName: argocd-config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

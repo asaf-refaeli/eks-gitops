@@ -1,0 +1,37 @@
+# Argo CD project for platform-level components (Argo CD's own config, and for
+# now the example app too). Scoped deliberately: one repo, the namespaces we
+# actually deploy into, and only the cluster-scoped kinds we actually need.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    # Projects must exist before the Applications that reference them.
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform components (Argo CD config, shared tooling).
+
+  sourceRepos:
+    - https://github.com/asaf-refaeli/platform.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: kubernetes-dashboard
+
+  # Namespaced resources: unrestricted within the destinations above.
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # Cluster-scoped resources: allow-list. Currently only what the Kubernetes
+  # Dashboard chart needs. Add entries here as platform components require them.
+  clusterResourceWhitelist:
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding

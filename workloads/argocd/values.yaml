@@ -1,0 +1,10 @@
+# Only these two keys are owned by Git; the Helm-managed install keeps ownership
+# of everything else in each ConfigMap (server-side apply, field-level).
+
+# argocd-cm: track app ownership via an annotation instead of the default label
+# (labels are size-limited and collide with other tooling).
+resourceTrackingMethod: annotation
+
+# argocd-rbac-cm: unauthenticated/unmatched users get read-only instead of
+# nothing. Tighten to "" (deny by default) once real policies exist.
+rbacPolicyDefault: role:readonly

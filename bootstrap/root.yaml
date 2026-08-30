@@ -1,0 +1,45 @@
+# The single seed of the whole GitOps setup.
+#
+#   kubectl apply -f bootstrap/root.yaml
+#
+# This is the ONE imperative command. It creates an Argo CD Application that
+# syncs this directory (recursively) — the classic "app of apps" root. That
+# gives you:
+#   - the two AppProjects           (bootstrap/projects/, sync-wave -1)
+#   - one child Application per app  (bootstrap/apps/,     sync-wave 0)
+#   - this Application itself        (it is in the synced path, so Argo adopts
+#                                     and self-heals it from Git from here on)
+#
+# After this, never `kubectl apply` again — change Git and let Argo reconcile.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    # Cascade delete: removing this Application removes everything it manages.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # 'default' is the only project guaranteed to exist at bootstrap time; the
+  # 'platform'/'apps' projects are created *by* this app.
+  project: default
+  source:
+    repoURL: https://github.com/asaf-refaeli/platform.git
+    targetRevision: main
+    path: bootstrap
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Field-level ownership — needed by the argocd config app downstream, and
+      # harmless everywhere else.
+      - ServerSideApply=true
+      # Delete removed resources only after the rest of the sync succeeds.
+      - PruneLast=true

@@ -1,0 +1,39 @@
+# Child Application (app-of-apps): the example workload.
+#
+# Source is a local umbrella Helm chart at workloads/kubernetes-dashboard/ that
+# depends on the upstream kubernetes-dashboard chart (appVersion 2.7.0) and adds
+# a read-only "viewer" login identity. Argo CD's repo-server runs
+# `helm dependency build` automatically — it needs egress to the chart repo.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubernetes-dashboard
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/asaf-refaeli/platform.git
+    targetRevision: main
+    path: workloads/kubernetes-dashboard
+    helm:
+      releaseName: kubernetes-dashboard
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubernetes-dashboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

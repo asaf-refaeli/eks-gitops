@@ -1,0 +1,9 @@
+# Values for the upstream chart are nested under its dependency name.
+# ClusterIP + no ingress are already the chart defaults; pinned here for clarity
+# so the "expose via port-forward" decision is visible in Git.
+kubernetes-dashboard:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  protocolHttp: false

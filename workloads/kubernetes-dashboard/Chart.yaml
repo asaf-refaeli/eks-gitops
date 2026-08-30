@@ -1,0 +1,16 @@
+apiVersion: v2
+name: kubernetes-dashboard
+description: >-
+  Kubernetes Dashboard (upstream Helm chart, appVersion 2.7.0) plus a read-only
+  "viewer" login identity. Wrapper chart so the extra RBAC and the upstream
+  chart ship as one Argo CD Application.
+type: application
+version: 0.1.0
+
+dependencies:
+  # Chart 6.0.8 is the last of the v6 line and pins Dashboard appVersion 2.7.0
+  # (the last manifest-based release; v7+ / chart 7+ is the Kong-based v3).
+  # Verify the mapping before bumping.
+  - name: kubernetes-dashboard
+    version: 6.0.8
+    repository: https://kubernetes.github.io/dashboard/
