@@ -1,0 +1,56 @@
+# Discovers every directory under workloads/* in this repo and creates one
+# Argo CD Application for it, all in the 'platform' project.
+#
+# To add an app: create workloads/<name>/ with a kustomization.yaml and commit.
+# Nothing else — this ApplicationSet does the rest.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  # Go templating is the current standard (the old {{path}} style is legacy).
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - git:
+        repoURL: https://github.com/asaf-refaeli/platform.git
+        revision: main
+        directories:
+          - path: workloads/*
+
+  template:
+    metadata:
+      # basename of the dir -> app name (e.g. "argocd", "kubernetes-dashboard")
+      name: "{{.path.basename}}"
+    spec:
+      project: platform
+      source:
+        repoURL: https://github.com/asaf-refaeli/platform.git
+        targetRevision: main
+        path: "{{.path.path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        # basename also happens to be the right namespace for both current apps.
+        # Each kustomization.yaml also pins its own namespace, so this is belt
+        # and braces.
+        namespace: "{{.path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - PruneLast=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

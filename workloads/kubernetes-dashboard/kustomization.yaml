@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kubernetes-dashboard
+
+resources:
+  # Upstream, pinned. v2.7.0 is the last release shipped as a single flat
+  # manifest — v3+ is Helm-only, which is why we stay here. The manifest also
+  # creates the kubernetes-dashboard namespace, Service (ClusterIP:443),
+  # ServiceAccount, RBAC, and the dashboard + metrics-scraper Deployments.
+  - https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+  # Our read-only login identity.
+  - viewer-serviceaccount.yaml
+  - viewer-clusterrolebinding.yaml

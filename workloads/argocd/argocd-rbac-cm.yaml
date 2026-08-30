@@ -1,0 +1,16 @@
+# Argo CD RBAC config. Same story as argocd-cm.yaml: Git owns only the one key
+# below; Helm keeps the rest (policy.csv, scopes, matchMode).
+#
+# policy.default=role:readonly: any authenticated user with no explicit policy
+# match gets read-only access instead of nothing. Reasonable for a lab; tighten
+# to "" (deny by default) once real RBAC policies are defined in policy.csv.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.default: role:readonly
