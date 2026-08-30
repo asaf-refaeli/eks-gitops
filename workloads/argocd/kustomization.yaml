@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The Argo CD install is a Helm release managed outside this repo. Here we only
+# own two config keys — see the comments in each ConfigMap.
+namespace: argocd
+
+resources:
+  - argocd-cm.yaml
+  - argocd-rbac-cm.yaml

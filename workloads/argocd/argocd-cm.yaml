@@ -1,0 +1,20 @@
+# Argo CD's main config. The install itself is a Helm release (chart argo-cd
+# v10.4.2, appVersion v3.5.2) and stays that way — this file does NOT recreate
+# Argo CD. It declares only the single key we want Git to own. Because the
+# parent Application syncs with ServerSideApply=true, Argo takes field-level
+# ownership of just this key; Helm keeps ownership of everything else in the
+# ConfigMap.
+#
+# resourceTrackingMethod=annotation: track app ownership via an annotation
+# instead of the (default) label. Recommended by Argo CD — labels are size-
+# limited and collide with other tooling that also uses labels.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  application.resourceTrackingMethod: annotation
