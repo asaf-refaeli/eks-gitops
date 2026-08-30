@@ -29,9 +29,12 @@ spec:
       kind: "*"
 
   # Cluster-scoped resources: allow-list. Currently only what the Kubernetes
-  # Dashboard needs. Add entries here as platform components require them
-  # (e.g. CustomResourceDefinition, ClusterRoleBinding for a controller).
+  # Dashboard needs (its recommended.yaml ships its own Namespace, plus a
+  # ClusterRole/ClusterRoleBinding for metrics). Add entries here as platform
+  # components require them (e.g. CustomResourceDefinition for a controller).
   clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
     - group: rbac.authorization.k8s.io
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
