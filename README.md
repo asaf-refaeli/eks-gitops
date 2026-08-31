@@ -109,8 +109,10 @@ refresh.
 
 The `platform` ApplicationSet creates the Application automatically. Namespace
 defaults to `<name>`; set `namespace:` in your `kustomization.yaml` to override.
-If `<name>` needs cluster-scoped kinds beyond `ClusterRole`/`ClusterRoleBinding`,
-add them to `clusterResourceWhitelist` in `bootstrap/projects/platform.yaml`.
+If `<name>` needs cluster-scoped kinds beyond those already allowed
+(`Namespace`, `ClusterRole`, `ClusterRoleBinding`), add them to
+`clusterResourceWhitelist` in `bootstrap/projects/platform.yaml` — otherwise the
+sync fails with `resource <Kind> is not permitted in project platform`.
 
 When real application workloads (as opposed to platform tooling) arrive, give
 them their own project by filling in `bootstrap/projects/apps.yaml` and pointing
