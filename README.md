@@ -17,9 +17,10 @@ bootstrap/                  synced by the root Application (recursively)
 └── applicationsets/
     └── platform.yaml       discovers workloads/* → one Application each, in project 'platform'
 
-workloads/                  one directory per Application (all Kustomize, no Helm)
-├── argocd/                 two config keys in argocd-cm / argocd-rbac-cm (see caveat below)
-└── kubernetes-dashboard/   the example app — proves the reconcile loop end to end
+workloads/                  one directory per Application — Kustomize or Helm, per folder
+├── argocd/                 [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
+├── kubernetes-dashboard/   [kustomize] the example app — proves the reconcile loop end to end
+└── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -36,13 +37,20 @@ kubectl apply bootstrap/root.yaml
         ├─► AppProject/apps          (sync-wave -1)
         └─► ApplicationSet/platform  (sync-wave 0)
                 │  git directories generator: workloads/*
-                ├─► Application/argocd               → workloads/argocd/
-                └─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
+                ├─► Application/argocd                → workloads/argocd/
+                ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
+                └─► Application/external-secrets      → workloads/external-secrets/
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
 Git too. Every generated Application uses `automated` sync with `prune` +
 `selfHeal`, plus `CreateNamespace=true`, `ServerSideApply=true`, `PruneLast=true`.
+
+The generator does not care how a folder is rendered: Argo CD picks Kustomize or
+Helm per directory based on whether it finds a `kustomization.yaml` or a
+`Chart.yaml`. `ServerSideApply=true` also matters for Helm charts with large
+CRDs — it avoids the `metadata.annotations: Too long` failure that
+client-side apply hits on the External Secrets CRDs.
 
 ## Prerequisites (one-time cluster setup)
 
@@ -58,7 +66,13 @@ Git too. Every generated Application uses `automated` sync with `prune` +
    (Or apply a `Secret` labeled `argocd.argoproj.io/secret-type: repository`.
    Do not commit credentials to this repo.)
 
-2. **`root.yaml` and the ApplicationSet track `targetRevision: main`.** Merge
+2. **The repo-server needs egress to any upstream Helm chart repo** used by a
+   workload — currently `https://charts.external-secrets.io`. Argo CD runs
+   `helm dependency build` itself; it just needs to reach the repo. An
+   air-gapped cluster would vendor the dependency into
+   `workloads/external-secrets/charts/` instead.
+
+3. **`root.yaml` and the ApplicationSet track `targetRevision: main`.** Merge
    this branch to `main` before bootstrapping, or temporarily point them at your
    branch for a dry run.
 
@@ -88,6 +102,22 @@ kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard 8443:443
 
 `viewer` is a read-only identity (built-in `view` ClusterRole — no Secrets).
 
+## External Secrets Operator
+
+Installed from the upstream chart (pinned at 2.10.0 / appVersion v2.10.0) into
+the `external-secrets` namespace. Verify:
+
+```bash
+kubectl -n external-secrets get pods     # controller, webhook, cert-controller
+kubectl get crd | grep external-secrets  # ExternalSecret, SecretStore, ...
+```
+
+This installs **the operator only**. It does nothing on its own until you give
+it a backend: a `SecretStore` / `ClusterSecretStore` pointing at AWS Secrets
+Manager (or similar), which on EKS also means an IRSA role for the operator's
+ServiceAccount. That is deliberately a separate change — it needs real AWS
+identity decisions rather than a default.
+
 ## Prove the GitOps loop
 
 **Drift correction (no commit):**
@@ -104,15 +134,21 @@ refresh.
 ## Add another app
 
 1. `mkdir workloads/<name>/`
-2. Add a `kustomization.yaml` (and any manifests / remote bases).
+2. Either a `kustomization.yaml` (manifests / remote bases) **or** a `Chart.yaml`
+   + `values.yaml` (a wrapper chart around an upstream one, as
+   `external-secrets/` does). Argo CD detects which from the files present.
 3. Commit and push.
 
 The `platform` ApplicationSet creates the Application automatically. Namespace
-defaults to `<name>`; set `namespace:` in your `kustomization.yaml` to override.
-If `<name>` needs cluster-scoped kinds beyond those already allowed
-(`Namespace`, `ClusterRole`, `ClusterRoleBinding`), add them to
-`clusterResourceWhitelist` in `bootstrap/projects/platform.yaml` — otherwise the
-sync fails with `resource <Kind> is not permitted in project platform`.
+defaults to `<name>`; the project allows any namespace on this cluster, so no
+project edit is needed for that.
+
+The one thing that *does* need a deliberate project edit: if `<name>` uses
+cluster-scoped kinds beyond those already allowed (`Namespace`, `ClusterRole`,
+`ClusterRoleBinding`, `CustomResourceDefinition`,
+`ValidatingWebhookConfiguration`), add them to `clusterResourceWhitelist` in
+`bootstrap/projects/platform.yaml` — otherwise the sync fails with
+`resource <Kind> is not permitted in project platform`.
 
 When real application workloads (as opposed to platform tooling) arrive, give
 them their own project by filling in `bootstrap/projects/apps.yaml` and pointing
