@@ -1,0 +1,20 @@
+# Cluster-wide READ-ONLY access via the built-in 'view' ClusterRole. 'view'
+# covers pods/logs and most namespaced resources but excludes Secrets, and it
+# grants no exec/delete — so this k9s can browse the cluster but not change it.
+#
+# If read-only proves too limiting for the lab, either:
+#   - swap roleRef.name to 'edit' (mutate namespaced resources, still no RBAC/Secrets), or
+#   - swap to 'cluster-admin' for full access (know what you're doing), or
+#   - define a dedicated ClusterRole here adding just pods/exec and pods/portforward.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k9s-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: k9s
+    namespace: k9s
