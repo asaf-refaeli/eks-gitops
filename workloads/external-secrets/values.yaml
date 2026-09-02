@@ -45,3 +45,7 @@ external-secrets:
       limits:
         cpu: 100m
         memory: 128Mi
+
+# Extra values
+aws:
+  region: il-central-1
