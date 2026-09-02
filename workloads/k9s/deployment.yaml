@@ -1,0 +1,80 @@
+# k9s is a terminal UI, not a web app — there is nothing to expose over HTTP and
+# no Service here. The container idles (`sleep infinity`) so the binary is
+# resident in the cluster; you get a TTY by exec'ing into it:
+#
+#   kubectl -n k9s exec -it deploy/k9s -- k9s
+#
+# Running it as the Deployment's entrypoint would fail: k9s needs a TTY and
+# would exit immediately, crash-looping the pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k9s
+  namespace: k9s
+  labels:
+    app.kubernetes.io/name: k9s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k9s
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k9s
+    spec:
+      serviceAccountName: k9s
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: k9s
+          # Pinned. Note: the newest GitHub *release* is v0.51.0, but no image
+          # was published for it — v0.50.18 is the latest tag on Docker Hub.
+          # amd64 only, which matches this cluster's t3.medium nodes.
+          image: derailed/k9s:v0.50.18
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          env:
+            # k9s writes config/state/cache under these; point them all at the
+            # writable emptyDir so the root filesystem can stay read-only.
+            - name: HOME
+              value: /home/k9s
+            - name: XDG_CONFIG_HOME
+              value: /home/k9s/.config
+            - name: XDG_DATA_HOME
+              value: /home/k9s/.local/share
+            - name: XDG_STATE_HOME
+              value: /home/k9s/.local/state
+            - name: XDG_CACHE_HOME
+              value: /home/k9s/.cache
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: home
+              mountPath: /home/k9s
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Ephemeral on purpose — k9s config/cache is disposable, and the pod is
+        # a scratch console, not stateful.
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

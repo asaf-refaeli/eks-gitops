@@ -19,7 +19,8 @@ bootstrap/                  synced by the root Application (recursively)
 
 workloads/                  one directory per Application (all Kustomize, no Helm)
 ├── argocd/                 two config keys in argocd-cm / argocd-rbac-cm (see caveat below)
-└── kubernetes-dashboard/   the example app — proves the reconcile loop end to end
+├── kubernetes-dashboard/   the example app — proves the reconcile loop end to end
+└── k9s/                    in-cluster k9s console, accessed via `kubectl exec`
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -36,8 +37,9 @@ kubectl apply bootstrap/root.yaml
         ├─► AppProject/apps          (sync-wave -1)
         └─► ApplicationSet/platform  (sync-wave 0)
                 │  git directories generator: workloads/*
-                ├─► Application/argocd               → workloads/argocd/
-                └─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
+                ├─► Application/argocd                → workloads/argocd/
+                ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
+                └─► Application/k9s                   → workloads/k9s/
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
@@ -88,6 +90,20 @@ kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard 8443:443
 
 `viewer` is a read-only identity (built-in `view` ClusterRole — no Secrets).
 
+## Use k9s
+
+k9s is a terminal UI, not a web app — there is no Service and nothing to
+port-forward. The pod idles so you can attach a TTY to it:
+
+```bash
+kubectl -n k9s exec -it deploy/k9s -- k9s
+```
+
+It authenticates as the `k9s` ServiceAccount, which is bound to the built-in
+`view` ClusterRole: cluster-wide read (including pod logs), no Secrets, no exec
+or delete. To widen it, change `roleRef.name` in
+`workloads/k9s/clusterrolebinding.yaml` and commit — see the comments there.
+
 ## Prove the GitOps loop
 
 **Drift correction (no commit):**
@@ -109,10 +125,14 @@ refresh.
 
 The `platform` ApplicationSet creates the Application automatically. Namespace
 defaults to `<name>`; set `namespace:` in your `kustomization.yaml` to override.
-If `<name>` needs cluster-scoped kinds beyond those already allowed
-(`Namespace`, `ClusterRole`, `ClusterRoleBinding`), add them to
-`clusterResourceWhitelist` in `bootstrap/projects/platform.yaml` — otherwise the
-sync fails with `resource <Kind> is not permitted in project platform`.
+The project allows any destination namespace on this cluster, so no project edit
+is needed for the namespace itself.
+
+The one thing that *does* need a deliberate project edit: if `<name>` uses
+cluster-scoped kinds beyond those already allowed (`Namespace`, `ClusterRole`,
+`ClusterRoleBinding`), add them to `clusterResourceWhitelist` in
+`bootstrap/projects/platform.yaml` — otherwise the sync fails with
+`resource <Kind> is not permitted in project platform`.
 
 When real application workloads (as opposed to platform tooling) arrive, give
 them their own project by filling in `bootstrap/projects/apps.yaml` and pointing
