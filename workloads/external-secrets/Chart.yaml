@@ -1,0 +1,22 @@
+# Wrapper chart around the upstream External Secrets Operator chart.
+#
+# The ApplicationSet picks this folder up like any other workload; Argo CD
+# detects Helm (rather than Kustomize) from the presence of this Chart.yaml, so
+# a Helm workload sits alongside the Kustomize ones with no generator changes.
+#
+# Argo CD's repo-server runs `helm dependency build` itself — it needs egress to
+# https://charts.external-secrets.io. The published .tgz already bundles the
+# chart's own optional bitwarden-sdk-server dependency, so no OCI/ghcr.io access
+# is required.
+apiVersion: v2
+name: external-secrets
+description: External Secrets Operator, installed from the upstream chart.
+type: application
+version: 0.1.0
+
+dependencies:
+  - name: external-secrets
+    # Chart 2.10.0 == appVersion v2.10.0. Pinned deliberately: bumping this is a
+    # reviewable commit, not a surprise on the next sync.
+    version: 2.10.0
+    repository: https://charts.external-secrets.io

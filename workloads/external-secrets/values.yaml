@@ -1,0 +1,47 @@
+# Values for the upstream chart are nested under its dependency name.
+# Everything here is either load-bearing or a deliberate lab-sizing choice —
+# the rest of the chart's defaults are left alone on purpose.
+external-secrets:
+  # The load-bearing setting: the operator is useless without its CRDs
+  # (ExternalSecret, SecretStore, ClusterSecretStore, ...). This is the chart
+  # default, stated explicitly because it is what requires
+  # apiextensions.k8s.io/CustomResourceDefinition in the platform AppProject.
+  installCRDs: true
+
+  # No Prometheus Operator in this cluster, so there is nothing to scrape the
+  # ServiceMonitor. Chart default is already false; kept explicit so the
+  # decision is visible rather than accidental.
+  serviceMonitor:
+    enabled: false
+
+  # Single replica per component — one environment, one lab cluster.
+  # Requests/limits sized for t3.medium nodes; the chart ships no defaults
+  # (resources: {}), which would leave all three deployments unbounded.
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  webhook:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  certController:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

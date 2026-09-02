@@ -17,21 +17,26 @@ spec:
   sourceRepos:
     - https://github.com/asaf-refaeli/platform.git
 
+  # Any namespace, but only on this cluster. Deliberately a wildcard: the
+  # ApplicationSet derives each Application's namespace from its folder name, so
+  # pinning namespaces here would mean editing this project for every new
+  # workload — defeating the point of the generator. The real guardrail is
+  # clusterResourceWhitelist below, which stays an explicit, deliberate list.
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: argocd
-    - server: https://kubernetes.default.svc
-      namespace: kubernetes-dashboard
+      namespace: "*"
 
   # Namespaced resources: unrestricted within the destinations above.
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
 
-  # Cluster-scoped resources: allow-list. Currently only what the Kubernetes
-  # Dashboard needs (its recommended.yaml ships its own Namespace, plus a
-  # ClusterRole/ClusterRoleBinding for metrics). Add entries here as platform
-  # components require them (e.g. CustomResourceDefinition for a controller).
+  # Cluster-scoped resources: the real guardrail — an explicit allow-list that
+  # should grow only by deliberate review. Currently covers:
+  #   - Kubernetes Dashboard: Namespace, ClusterRole, ClusterRoleBinding
+  #   - External Secrets Operator: CustomResourceDefinition (ExternalSecret,
+  #     SecretStore, ...) and its ValidatingWebhookConfiguration, plus the
+  #     ClusterRoles/Bindings above
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -39,3 +44,7 @@ spec:
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
