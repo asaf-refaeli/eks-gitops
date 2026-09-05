@@ -8,3 +8,4 @@ namespace: sitelens
 resources:
   - namespace.yaml
   - sitelens-database-es.yaml
+  - service-account.yaml
