@@ -21,7 +21,7 @@ workloads/                  one directory per Application — Kustomize or Helm,
 ├── argocd/                 [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
 ├── kubernetes-dashboard/   [kustomize] the example app — proves the reconcile loop end to end
 ├── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
-└── aws-load-balancer-controller/  [helm] AWS Load Balancer Controller, chart pinned at 3.5.0
+└── sitelens/               [kustomize] the sitelens namespace — home for the web app
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -41,7 +41,7 @@ kubectl apply bootstrap/root.yaml
                 ├─► Application/argocd                → workloads/argocd/
                 ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
                 ├─► Application/external-secrets      → workloads/external-secrets/
-                └─► Application/aws-load-balancer-controller → workloads/aws-load-balancer-controller/
+                └─► Application/sitelens              → workloads/sitelens/
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
