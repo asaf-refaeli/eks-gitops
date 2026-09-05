@@ -7,7 +7,23 @@ aws-load-balancer-controller:
   # Must match the real EKS cluster name — the controller tags and discovers
   # AWS resources by it.
   clusterName: platform
+
+  # region and vpcId are both auto-discoverable from EC2 IMDS, but that
+  # discovery does not work here: the node launch template's IMDS hop limit
+  # stops pods on the pod network reaching 169.254.169.254, so the controller
+  # exits at startup with "failed to introspect vpcID" and crashloops. Setting
+  # them explicitly removes the IMDS dependency entirely.
+  #
+  # vpcId is the cluster's VPC:
+  #   aws eks describe-cluster --name platform --region il-central-1 \
+  #     --query cluster.resourcesVpcConfig.vpcId
   region: il-central-1
+  vpcId: vpc-0f6475b410dd288d5
+
+  # Register pod IPs directly as load balancer targets via the VPC CNI, rather
+  # than routing through a NodePort on each instance (the chart's default).
+  # Fewer hops, and it is what pod readiness gates require.
+  defaultTargetType: ip
 
   serviceAccount:
     create: true
