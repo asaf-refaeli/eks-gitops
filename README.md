@@ -137,6 +137,30 @@ kubectl get crd | grep elbv2.k8s.aws     # TargetGroupBinding, IngressClassParam
 it, and the controller uses it to discover and tag AWS resources. If the cluster
 is ever rebuilt under a different name, this value must change with it.
 
+**`region` and `vpcId` are effectively mandatory too.** Both are nominally
+auto-discovered from EC2 IMDS, but the node launch template's IMDS hop limit
+stops pods on the pod network from reaching `169.254.169.254`. Without them the
+controller exits at startup with `failed to introspect vpcID` and crashloops.
+Re-derive `vpcId` after any cluster rebuild:
+
+```bash
+aws eks describe-cluster --name platform --region il-central-1 \
+  --query cluster.resourcesVpcConfig.vpcId
+```
+
+**`defaultTargetType: ip`** registers pod IPs directly as load balancer targets
+through the VPC CNI, instead of routing via a NodePort on each instance (the
+chart's default). Fewer hops, and required for pod readiness gates.
+
+**The service mutator webhook is left enabled** (chart default). Be aware it is
+cluster-wide and fail-closed on Service **creation**: `failurePolicy: Fail`,
+no namespace selector, `rules: services/CREATE`. If the controller is
+unavailable, no new Service can be created anywhere in the cluster — worth
+remembering during a rebuild. It is what makes an un-annotated
+`type: LoadBalancer` Service resolve to an NLB via this controller rather than a
+legacy Classic ELB; set `enableServiceMutatorWebhook: false` if you would rather
+annotate LoadBalancer Services explicitly and drop the dependency.
+
 **AWS auth is via EKS Pod Identity**, configured out-of-band — deliberately not
 in this repo, since it is IAM rather than Kubernetes. Two things must exist
 before the controller can actually provision load balancers:
