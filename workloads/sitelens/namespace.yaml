@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sitelens
+  annotations:
+    # Never let an automated prune take the namespace. The generated Application
+    # runs prune + selfHeal, so without this a lost manifest (refactor, bad
+    # merge, folder split) would delete the namespace — and Kubernetes would
+    # cascade-delete everything inside it, including resources Argo never
+    # managed. Removing the namespace should be a deliberate `kubectl delete ns`.
+    argocd.argoproj.io/sync-options: Prune=false
