@@ -7,3 +7,4 @@ namespace: sitelens
 
 resources:
   - namespace.yaml
+  - sitelens-database-es.yaml
