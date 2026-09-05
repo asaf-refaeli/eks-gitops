@@ -37,6 +37,8 @@ spec:
   #   - External Secrets Operator: CustomResourceDefinition (ExternalSecret,
   #     SecretStore, ...) and its ValidatingWebhookConfiguration, plus the
   #     ClusterRoles/Bindings above
+  #   - AWS Load Balancer Controller: MutatingWebhookConfiguration, and the
+  #     IngressClass / IngressClassParams pair it creates for the "alb" class
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -48,5 +50,11 @@ spec:
       kind: CustomResourceDefinition
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
     - group: external-secrets.io
       kind: ClusterSecretStore
+    - group: networking.k8s.io
+      kind: IngressClass
+    - group: elbv2.k8s.aws
+      kind: IngressClassParams
