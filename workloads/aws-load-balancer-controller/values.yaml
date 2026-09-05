@@ -1,0 +1,36 @@
+# Values for the upstream chart are nested under its dependency name.
+# Only what is required or a deliberate choice — the rest of the chart's
+# defaults are left alone on purpose.
+aws-load-balancer-controller:
+  # REQUIRED. The chart refuses to render without it:
+  #   "Chart cannot be installed without a valid clusterName!"
+  # Must match the real EKS cluster name — the controller tags and discovers
+  # AWS resources by it.
+  clusterName: platform
+
+  serviceAccount:
+    create: true
+    # Pinned rather than left to the chart's fullname template. AWS auth is via
+    # an EKS Pod Identity association created out-of-band, and that association
+    # targets this ServiceAccount by (namespace, name). Hard-coding the name
+    # means a future change to the chart's naming cannot silently break it.
+    #
+    # The association must point at:
+    #   namespace:      aws-load-balancer-controller
+    #   serviceAccount: aws-load-balancer-controller
+    #
+    # No eks.amazonaws.com/role-arn annotation here — that is the IRSA
+    # mechanism, and Pod Identity deliberately does not use it.
+    name: aws-load-balancer-controller
+
+  # The chart ships `resources: {}`, which would leave the controller with no
+  # requests or limits (BestEffort QoS, first to be evicted). Sized for the
+  # t3.medium nodes; memory is the binding constraint since the controller
+  # caches AWS and cluster state.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi

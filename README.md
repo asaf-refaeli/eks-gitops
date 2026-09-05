@@ -20,7 +20,8 @@ bootstrap/                  synced by the root Application (recursively)
 workloads/                  one directory per Application — Kustomize or Helm, per folder
 ├── argocd/                 [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
 ├── kubernetes-dashboard/   [kustomize] the example app — proves the reconcile loop end to end
-└── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
+├── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
+└── aws-load-balancer-controller/  [helm] AWS Load Balancer Controller, chart pinned at 3.5.0
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -39,7 +40,8 @@ kubectl apply bootstrap/root.yaml
                 │  git directories generator: workloads/*
                 ├─► Application/argocd                → workloads/argocd/
                 ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
-                └─► Application/external-secrets      → workloads/external-secrets/
+                ├─► Application/external-secrets      → workloads/external-secrets/
+                └─► Application/aws-load-balancer-controller → workloads/aws-load-balancer-controller/
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
@@ -67,7 +69,8 @@ client-side apply hits on the External Secrets CRDs.
    Do not commit credentials to this repo.)
 
 2. **The repo-server needs egress to any upstream Helm chart repo** used by a
-   workload — currently `https://charts.external-secrets.io`. Argo CD runs
+   workload — currently `https://charts.external-secrets.io` and
+   `https://aws.github.io/eks-charts`. Argo CD runs
    `helm dependency build` itself; it just needs to reach the repo. An
    air-gapped cluster would vendor the dependency into
    `workloads/external-secrets/charts/` instead.
@@ -117,6 +120,40 @@ it a backend: a `SecretStore` / `ClusterSecretStore` pointing at AWS Secrets
 Manager (or similar), which on EKS also means an IRSA role for the operator's
 ServiceAccount. That is deliberately a separate change — it needs real AWS
 identity decisions rather than a default.
+
+## AWS Load Balancer Controller
+
+Installed from the upstream chart (pinned at 3.5.0 / appVersion v3.5.0) into the
+`aws-load-balancer-controller` namespace. It also creates the `alb`
+`IngressClass` and its `IngressClassParams`. Verify:
+
+```bash
+kubectl -n aws-load-balancer-controller get pods
+kubectl get ingressclass alb
+kubectl get crd | grep elbv2.k8s.aws     # TargetGroupBinding, IngressClassParams
+```
+
+**`clusterName: platform` is mandatory** — the chart refuses to render without
+it, and the controller uses it to discover and tag AWS resources. If the cluster
+is ever rebuilt under a different name, this value must change with it.
+
+**AWS auth is via EKS Pod Identity**, configured out-of-band — deliberately not
+in this repo, since it is IAM rather than Kubernetes. Two things must exist
+before the controller can actually provision load balancers:
+
+1. The **EKS Pod Identity Agent** addon installed on the cluster.
+2. A **Pod Identity association** binding an IAM role (carrying
+   `AWSLoadBalancerControllerIAMPolicy`) to:
+   - namespace `aws-load-balancer-controller`
+   - serviceAccount `aws-load-balancer-controller`
+
+That ServiceAccount name is pinned in `values.yaml` precisely so the association
+cannot be broken by a chart naming change. Without the association the
+controller installs and runs, but logs AWS permission errors and provisions
+nothing.
+
+Subnets must also carry the usual discovery tags — `kubernetes.io/role/elb` on
+public subnets, `kubernetes.io/role/internal-elb` on private ones.
 
 ## Prove the GitOps loop
 
