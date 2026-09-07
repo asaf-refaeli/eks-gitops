@@ -9,7 +9,7 @@ spec:
     name: aws-secrets-manager
     kind: ClusterSecretStore
   target:
-    name: sitelens-database
+    name: sitelens-db
     creationPolicy: Owner
   dataFrom:
     - extract:
