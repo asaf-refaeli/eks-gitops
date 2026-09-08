@@ -25,5 +25,7 @@ metadata:
 spec:
   description: Reserved for application workloads — intentionally empty for now.
   sourceRepos: []
-  destinations: []
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "sitelens"
   clusterResourceWhitelist: []
