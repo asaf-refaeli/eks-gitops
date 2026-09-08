@@ -35,10 +35,12 @@ spec:
         path: "{{.path.path}}"
       destination:
         server: https://kubernetes.default.svc
-        # basename also happens to be the right namespace for both current apps.
-        # Each kustomization.yaml also pins its own namespace, so this is belt
-        # and braces.
-        namespace: "{{.path.basename}}"
+        # Folder name is the Application name; the namespace is that name minus
+        # a "-config" suffix. So a folder holding config for another app
+        # (sitelens-config) targets that app's namespace (sitelens), while every
+        # other folder is unaffected — none of them ends in "-config".
+        # Each kustomization.yaml also pins its own namespace, belt and braces.
+        namespace: '{{ trimSuffix "-config" .path.basename }}'
       syncPolicy:
         automated:
           prune: true

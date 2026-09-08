@@ -21,7 +21,7 @@ workloads/                  one directory per Application — Kustomize or Helm,
 ├── argocd/                 [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
 ├── kubernetes-dashboard/   [kustomize] the example app — proves the reconcile loop end to end
 ├── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
-└── sitelens/               [kustomize] the sitelens namespace — home for the web app
+└── sitelens-config/        [kustomize] config for the sitelens app — deploys into ns `sitelens`
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -41,7 +41,7 @@ kubectl apply bootstrap/root.yaml
                 ├─► Application/argocd                → workloads/argocd/
                 ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
                 ├─► Application/external-secrets      → workloads/external-secrets/
-                └─► Application/sitelens              → workloads/sitelens/
+                └─► Application/sitelens-config       → workloads/sitelens-config/   (ns: sitelens)
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
@@ -200,9 +200,20 @@ refresh.
    `external-secrets/` does). Argo CD detects which from the files present.
 3. Commit and push.
 
-The `platform` ApplicationSet creates the Application automatically. Namespace
-defaults to `<name>`; the project allows any namespace on this cluster, so no
-project edit is needed for that.
+The `platform` ApplicationSet creates the Application automatically, named
+after the folder. The destination namespace is that folder name **minus a
+`-config` suffix**:
+
+| folder | Application | namespace |
+|---|---|---|
+| `external-dns/` | `external-dns` | `external-dns` |
+| `sitelens-config/` | `sitelens-config` | `sitelens` |
+
+So a folder holding config *for another app* can be named after that app
+without hijacking its namespace, and two folders can target one namespace —
+`sitelens-config/` and a future `sitelens/` both deploy into `sitelens`. Any
+folder not ending in `-config` behaves exactly as before. The project allows
+any namespace on this cluster, so no project edit is needed for that.
 
 The one thing that *does* need a deliberate project edit: if `<name>` uses
 cluster-scoped kinds beyond those already allowed (`Namespace`, `ClusterRole`,
