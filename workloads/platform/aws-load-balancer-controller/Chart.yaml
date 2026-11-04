@@ -1,6 +1,6 @@
 # Wrapper chart around the upstream AWS Load Balancer Controller chart.
 #
-# Same shape as workloads/external-secrets/: Argo CD detects Helm from this
+# Same shape as workloads/platform/external-secrets/: Argo CD detects Helm from this
 # Chart.yaml, and its repo-server runs `helm dependency build` itself — it needs
 # egress to https://aws.github.io/eks-charts.
 apiVersion: v2

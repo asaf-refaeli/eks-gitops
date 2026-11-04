@@ -1,7 +1,7 @@
-# Discovers every directory under workloads/* in this repo and creates one
+# Discovers every directory under workloads/platform/* in this repo and creates one
 # Argo CD Application for it, all in the 'platform' project.
 #
-# To add an app: create workloads/<name>/ with a kustomization.yaml and commit.
+# To add an app: create workloads/platform/<name>/ with a kustomization.yaml and commit.
 # Nothing else — this ApplicationSet does the rest.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -21,7 +21,7 @@ spec:
         repoURL: https://github.com/asaf-refaeli/platform.git
         revision: main
         directories:
-          - path: workloads/*
+          - path: workloads/platform/*
 
   template:
     metadata:

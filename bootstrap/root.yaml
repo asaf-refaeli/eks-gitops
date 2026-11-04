@@ -5,7 +5,7 @@
 # This is the ONE imperative command. It creates an Argo CD Application that
 # syncs this directory (recursively), which in turn creates:
 #   - the two AppProjects (sync-wave -1, so they exist first)
-#   - the ApplicationSet that discovers everything under workloads/* (sync-wave 0)
+#   - the ApplicationSet that discovers everything under workloads/platform/* (sync-wave 0)
 #   - this Application itself (it is in the synced path, so Argo adopts and
 #     self-heals it from Git from here on)
 #
