@@ -20,7 +20,7 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   # 'default' is the only project guaranteed to exist at bootstrap time; the
-  # 'platform'/'apps' projects are created *by* this app.
+  # 'platform'/'sample-app' projects are created *by* this app.
   project: default
   source:
     repoURL: https://github.com/asaf-refaeli/platform.git

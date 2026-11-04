@@ -1,0 +1,36 @@
+# Argo CD project for the sample-app workload. Scoped to exactly what the app
+# needs: its chart repo, this repo (for the env values), and one namespace.
+# Any resource outside namespace sample-app fails the sync.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sample-app
+  namespace: argocd
+  annotations:
+    # Projects must exist before the Applications that reference them.
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: sample-app (Node.js demo app), chart from the app repo.
+
+  sourceRepos:
+    # Helm chart
+    - https://github.com/asaf-refaeli/sample-nodejs.git
+    # Environment values ($values source)
+    - https://github.com/asaf-refaeli/platform.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: sample-app
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # Only the Namespace, which Argo CD creates through CreateNamespace with
+  # managedNamespaceMetadata. Namespace creation is still limited to the
+  # destination above.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
