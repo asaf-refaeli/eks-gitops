@@ -1,0 +1,31 @@
+# Environment values for sample-app. Merged over the chart defaults in
+# sample-nodejs/chart/values.yaml; only what differs per environment goes here.
+
+image:
+  repository: 498814651067.dkr.ecr.il-central-1.amazonaws.com/devops-task/sample-app
+  # Set by CI to the git SHA of the built commit. Empty until the first CI build.
+  tag: ""
+
+ingress:
+  enabled: true
+  # IngressClass from the AWS Load Balancer Controller. Its IngressClassParams
+  # put every alb Ingress on the shared ALB, so no group annotation here.
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    # The ALB health-checks "/" by default, which the app answers with 404.
+    alb.ingress.kubernetes.io/healthcheck-path: /ready
+    # HTTPS with the ACM certificate auto-discovered from the host; HTTP redirects to HTTPS.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+  hosts:
+    - host: sample-app.asafr.dev
+      paths:
+        - path: /my-app
+          pathType: Prefix
+        - path: /about
+          pathType: Prefix
+
+# Off until Prometheus Operator is installed on the cluster.
+serviceMonitor:
+  enabled: false
