@@ -1,7 +1,7 @@
 # Helm dependency artifacts. Chart.lock IS committed (it pins the resolved
 # version); the downloaded .tgz is not — Argo CD's repo-server runs
 # `helm dependency build` itself on every sync.
-workloads/*/charts/
+workloads/**/charts/
 
 # Local Claude Code session state / worktrees, not repo content.
 .claude/
