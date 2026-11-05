@@ -1,0 +1,54 @@
+# sample-app: Helm chart from the app repo, environment values from this repo.
+# Synced by the root Application (it recurses into bootstrap/).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-app
+  namespace: argocd
+  annotations:
+    # After the AppProjects (wave -1) and the ApplicationSet (wave 0).
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    # Deleting this Application also deletes the resources it deployed.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sample-app
+
+  sources:
+    # The chart, versioned with the app code.
+    - repoURL: https://github.com/asaf-refaeli/sample-nodejs.git
+      targetRevision: main
+      path: chart
+      helm:
+        releaseName: sample-app
+        # $values is the root of the source below with ref: values.
+        valueFiles:
+          - $values/workloads/apps/sample-app/values.yaml
+    # This repo, only as a source of the values file; nothing is rendered from it.
+    - repoURL: https://github.com/asaf-refaeli/eks-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # Argo CD creates the namespace and labels it so the API server rejects
+    # pods that do not meet the Pod Security "restricted" profile.
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

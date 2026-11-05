@@ -1,4 +1,4 @@
-# platform
+# eks-gitops
 
 GitOps repository for the EKS `platform` cluster. **Argo CD is the only thing
 that applies manifests to the cluster.** After the one-time bootstrap below, the
@@ -12,16 +12,24 @@ workflow is: change Git → Argo CD reconciles. No `kubectl apply`.
 bootstrap/                  synced by the root Application (recursively)
 ├── root.yaml               the ONE `kubectl apply` — the GitOps seed
 ├── projects/
-│   ├── platform.yaml       AppProject: platform  (Argo CD config + shared tooling)
-│   └── apps.yaml           AppProject: apps      (empty placeholder for real workloads)
-└── applicationsets/
-    └── platform.yaml       discovers workloads/* → one Application each, in project 'platform'
+│   ├── platform.yaml       AppProject: platform    (Argo CD config + shared tooling)
+│   └── sample-app.yaml     AppProject: sample-app  (scoped to one namespace + two repos)
+├── applicationsets/
+│   └── platform.yaml       discovers workloads/platform/* → one Application each, in project 'platform'
+└── apps/
+    └── sample-app.yaml     Application: chart from the sample-nodejs repo + values from this repo
 
-workloads/                  one directory per Application — Kustomize or Helm, per folder
-├── argocd/                 [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
-├── kubernetes-dashboard/   [kustomize] the example app — proves the reconcile loop end to end
-├── external-secrets/       [helm] External Secrets Operator, upstream chart pinned at 2.10.0
-└── sitelens-config/        [kustomize] config for the sitelens app — deploys into ns `sitelens`
+workloads/
+├── platform/               shared tooling; one directory per Application — Kustomize or Helm
+│   ├── argocd/                       [kustomize] two config keys in argocd-cm / argocd-rbac-cm (see caveat)
+│   ├── kubernetes-dashboard/         [kustomize] the example app — proves the reconcile loop end to end
+│   ├── external-secrets/             [helm] External Secrets Operator, upstream chart pinned at 2.10.0
+│   ├── aws-load-balancer-controller/ [helm] ALB controller, upstream chart pinned at 3.5.0
+│   ├── external-dns/                 [kustomize] namespace + ServiceAccount only
+│   └── sitelens-config/              [kustomize] config for the sitelens app — deploys into ns `sitelens`
+└── apps/                   application workloads; values only, the chart lives in the app's repo
+    └── sample-app/
+        └── values.yaml     environment values (image, ingress); CI sets image.tag
 
 scripts/bootstrap.sh        thin wrapper around the one apply + a readiness wait
 ```
@@ -35,13 +43,18 @@ kubectl apply bootstrap/root.yaml
   Application/root ──sync──► bootstrap/  (recurse)
         │
         ├─► AppProject/platform      (sync-wave -1, created first)
-        ├─► AppProject/apps          (sync-wave -1)
-        └─► ApplicationSet/platform  (sync-wave 0)
-                │  git directories generator: workloads/*
-                ├─► Application/argocd                → workloads/argocd/
-                ├─► Application/kubernetes-dashboard  → workloads/kubernetes-dashboard/
-                ├─► Application/external-secrets      → workloads/external-secrets/
-                └─► Application/sitelens-config       → workloads/sitelens-config/   (ns: sitelens)
+        ├─► AppProject/sample-app    (sync-wave -1)
+        ├─► ApplicationSet/platform  (sync-wave 0)
+        │       │  git directories generator: workloads/platform/*
+        │       ├─► Application/argocd                → workloads/platform/argocd/
+        │       ├─► Application/kubernetes-dashboard  → workloads/platform/kubernetes-dashboard/
+        │       ├─► Application/external-secrets      → workloads/platform/external-secrets/
+        │       ├─► Application/aws-load-balancer-controller → workloads/platform/aws-load-balancer-controller/
+        │       ├─► Application/external-dns          → workloads/platform/external-dns/
+        │       └─► Application/sitelens-config       → workloads/platform/sitelens-config/   (ns: sitelens)
+        └─► Application/sample-app   (sync-wave 1, project sample-app, ns sample-app)
+                ├─ source: sample-nodejs.git  path chart/            (Helm chart)
+                └─ source: platform.git       ref values  →  $values/workloads/apps/sample-app/values.yaml
 ```
 
 `root` is inside the path it syncs, so Argo CD adopts and self-heals it from
@@ -61,7 +74,7 @@ client-side apply hits on the External Secrets CRDs.
    one-time infra step, like the bootstrap apply itself):
 
    ```bash
-   argocd repo add https://github.com/asaf-refaeli/platform.git \
+   argocd repo add https://github.com/asaf-refaeli/eks-gitops.git \
      --username <github-user> --password <github-PAT>
    ```
 
@@ -73,7 +86,10 @@ client-side apply hits on the External Secrets CRDs.
    `https://aws.github.io/eks-charts`. Argo CD runs
    `helm dependency build` itself; it just needs to reach the repo. An
    air-gapped cluster would vendor the dependency into
-   `workloads/external-secrets/charts/` instead.
+   `workloads/platform/external-secrets/charts/` instead.
+
+   The sample-app chart comes from `https://github.com/asaf-refaeli/sample-nodejs.git`,
+   which is public, so it needs no repository credential.
 
 3. **`root.yaml` and the ApplicationSet track `targetRevision: main`.** Merge
    this branch to `main` before bootstrapping, or temporarily point them at your
@@ -179,6 +195,49 @@ nothing.
 Subnets must also carry the usual discovery tags — `kubernetes.io/role/elb` on
 public subnets, `kubernetes.io/role/internal-elb` on private ones.
 
+**All `alb` Ingresses share one ALB.** `ingressClassParams.spec.group.name:
+shared` puts every Ingress with `ingressClassName: alb` into one IngressGroup, so
+apps do not get an ALB each (each ALB has a fixed hourly cost). It is set on the
+class, so the platform decides the grouping and an Ingress cannot choose another
+group. Each app needs a unique host; settings such as `scheme` and listen ports
+must agree across the group, and a broken Ingress stalls updates to the whole
+ALB (controller logs: `failed to build LoadBalancer configuration`). Verify:
+
+```bash
+kubectl get ingressclassparams alb -o jsonpath='{.spec.group.name}'   # shared
+kubectl get ingress -A                                                # same ADDRESS for every alb Ingress
+```
+
+## sample-app
+
+The first application workload: a Node.js demo app. The Helm chart lives in the
+app repo (`sample-nodejs/chart/`), so code and chart change in one PR. This repo
+holds only what is deployed: the environment values, including `image.tag`.
+
+- `bootstrap/apps/sample-app.yaml` is a multi-source Application. Source one is
+  the chart; source two is this repo with `ref: values`, which only exposes
+  `$values/workloads/apps/sample-app/values.yaml` to the first source.
+- Project `sample-app` allows only those two repos and namespace `sample-app`.
+  A resource in any other namespace fails the sync with
+  `namespace <ns> is not permitted in project 'sample-app'`.
+- Argo CD creates the namespace (`CreateNamespace=true`) and labels it
+  `pod-security.kubernetes.io/enforce: restricted`, so the API server rejects
+  pods that do not meet the restricted Pod Security profile.
+- Exposed at `https://sample-app.asafr.dev` on the shared ALB, with only the
+  public paths (`/my-app`, `/about`). The ACM certificate is found from the
+  host; the ALB health-checks `/ready`.
+- CI in `sample-nodejs` builds the image, pushes it to ECR, and commits the new
+  `image.tag` to `workloads/apps/sample-app/values.yaml`. That commit is the
+  deploy; `git revert` is the rollback.
+
+Verify:
+
+```bash
+kubectl -n argocd get application sample-app      # Synced / Healthy
+kubectl -n sample-app get pods,svc,ingress
+curl https://sample-app.asafr.dev/my-app          # Hello, World!
+```
+
 ## Prove the GitOps loop
 
 **Drift correction (no commit):**
@@ -188,13 +247,13 @@ kubectl -n kubernetes-dashboard scale deploy/kubernetes-dashboard --replicas=0
 # selfHeal restores it to 1 within ~3 min
 ```
 
-**Change via Git:** edit anything under `workloads/kubernetes-dashboard/`,
+**Change via Git:** edit anything under `workloads/platform/kubernetes-dashboard/`,
 commit, push — Argo CD applies it on the next poll (~3 min) or on a manual
 refresh.
 
-## Add another app
+## Add platform tooling
 
-1. `mkdir workloads/<name>/`
+1. `mkdir workloads/platform/<name>/`
 2. Either a `kustomization.yaml` (manifests / remote bases) **or** a `Chart.yaml`
    + `values.yaml` (a wrapper chart around an upstream one, as
    `external-secrets/` does). Argo CD detects which from the files present.
@@ -222,15 +281,27 @@ cluster-scoped kinds beyond those already allowed (`Namespace`, `ClusterRole`,
 `bootstrap/projects/platform.yaml` — otherwise the sync fails with
 `resource <Kind> is not permitted in project platform`.
 
-When real application workloads (as opposed to platform tooling) arrive, give
-them their own project by filling in `bootstrap/projects/apps.yaml` and pointing
-their Applications at `project: apps`.
+## Add an application
+
+Follow the sample-app pattern: the chart stays in the app's repo, and this repo
+gets three files.
+
+1. `bootstrap/projects/<name>.yaml`: an AppProject allowing the app repo, this
+   repo, and namespace `<name>` only.
+2. `workloads/apps/<name>/values.yaml`: environment values. Use
+   `ingressClassName: alb` with a unique host; the shared ALB picks it up.
+3. `bootstrap/apps/<name>.yaml`: a multi-source Application like
+   `sample-app.yaml`, in project `<name>`, with sync-wave `1`.
+
+Root syncs `bootstrap/` recursively, so committing these is enough. With several
+applications, an ApplicationSet over `workloads/apps/*` would replace the
+copied Application files.
 
 ## Caveat: Argo CD config is "config-only"
 
 Argo CD itself was installed with the **Helm chart** `argo-cd` v10.4.2
 (appVersion v3.5.2), release `argo-cd`. This repo does **not** manage that
-install. `workloads/argocd/` declares only two keys:
+install. `workloads/platform/argocd/` declares only two keys:
 
 | ConfigMap        | Key                                    | Value           |
 |------------------|----------------------------------------|-----------------|
@@ -255,7 +326,7 @@ kubectl apply -f bootstrap/root.yaml
 
 ## Deliberately out of scope
 
-Ingress/TLS/LoadBalancer, SSO/OIDC, multiple environments, Argo CD
+SSO/OIDC, multiple environments, Argo CD
 Notifications, secrets management (sealed/external secrets), image updater,
 network policies. All reasonable next steps; none needed to demonstrate a
 correct GitOps setup.
