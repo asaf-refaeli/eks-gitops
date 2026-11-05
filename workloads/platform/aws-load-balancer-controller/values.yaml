@@ -51,3 +51,11 @@ aws-load-balancer-controller:
     limits:
       cpu: 200m
       memory: 512Mi
+
+  # Every Ingress with className alb joins one shared ALB (IngressGroup), so
+  # apps don't get an ALB each. Set on the class so the platform decides the
+  # grouping; an Ingress cannot pick another group. Each app needs a unique host.
+  ingressClassParams:
+    spec:
+      group:
+        name: shared
