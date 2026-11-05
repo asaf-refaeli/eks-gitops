@@ -18,7 +18,7 @@ spec:
     # Helm chart
     - https://github.com/asaf-refaeli/sample-nodejs.git
     # Environment values ($values source)
-    - https://github.com/asaf-refaeli/platform.git
+    - https://github.com/asaf-refaeli/eks-gitops.git
 
   destinations:
     - server: https://kubernetes.default.svc

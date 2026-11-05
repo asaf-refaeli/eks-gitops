@@ -25,7 +25,7 @@ spec:
         valueFiles:
           - $values/workloads/apps/sample-app/values.yaml
     # This repo, only as a source of the values file; nothing is rendered from it.
-    - repoURL: https://github.com/asaf-refaeli/platform.git
+    - repoURL: https://github.com/asaf-refaeli/eks-gitops.git
       targetRevision: main
       ref: values
 

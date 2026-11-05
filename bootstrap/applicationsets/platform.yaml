@@ -18,7 +18,7 @@ spec:
 
   generators:
     - git:
-        repoURL: https://github.com/asaf-refaeli/platform.git
+        repoURL: https://github.com/asaf-refaeli/eks-gitops.git
         revision: main
         directories:
           - path: workloads/platform/*
@@ -30,7 +30,7 @@ spec:
     spec:
       project: platform
       source:
-        repoURL: https://github.com/asaf-refaeli/platform.git
+        repoURL: https://github.com/asaf-refaeli/eks-gitops.git
         targetRevision: main
         path: "{{.path.path}}"
       destination:

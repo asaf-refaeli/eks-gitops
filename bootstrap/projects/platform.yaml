@@ -15,7 +15,7 @@ spec:
   description: Platform components (Argo CD config, shared tooling).
 
   sourceRepos:
-    - https://github.com/asaf-refaeli/platform.git
+    - https://github.com/asaf-refaeli/eks-gitops.git
 
   # Any namespace, but only on this cluster. Deliberately a wildcard: the
   # ApplicationSet derives each Application's namespace from its folder name, so

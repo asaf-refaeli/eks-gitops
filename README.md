@@ -1,4 +1,4 @@
-# platform
+# eks-gitops
 
 GitOps repository for the EKS `platform` cluster. **Argo CD is the only thing
 that applies manifests to the cluster.** After the one-time bootstrap below, the
@@ -74,7 +74,7 @@ client-side apply hits on the External Secrets CRDs.
    one-time infra step, like the bootstrap apply itself):
 
    ```bash
-   argocd repo add https://github.com/asaf-refaeli/platform.git \
+   argocd repo add https://github.com/asaf-refaeli/eks-gitops.git \
      --username <github-user> --password <github-PAT>
    ```
 

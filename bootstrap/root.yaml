@@ -23,7 +23,7 @@ spec:
   # 'platform'/'sample-app' projects are created *by* this app.
   project: default
   source:
-    repoURL: https://github.com/asaf-refaeli/platform.git
+    repoURL: https://github.com/asaf-refaeli/eks-gitops.git
     targetRevision: main
     path: bootstrap
     directory:
