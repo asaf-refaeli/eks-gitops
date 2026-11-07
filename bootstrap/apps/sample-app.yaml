@@ -13,7 +13,6 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: sample-app
-
   sources:
     # The chart, versioned with the app code.
     - repoURL: https://github.com/asaf-refaeli/sample-nodejs.git
@@ -28,11 +27,9 @@ spec:
     - repoURL: https://github.com/asaf-refaeli/eks-gitops.git
       targetRevision: main
       ref: values
-
   destination:
     server: https://kubernetes.default.svc
     namespace: sample-app
-
   syncPolicy:
     automated:
       prune: true

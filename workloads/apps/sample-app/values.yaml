@@ -24,7 +24,6 @@ ingress:
           pathType: Prefix
         - path: /about
           pathType: Prefix
-
 # Off until Prometheus Operator is installed on the cluster.
 serviceMonitor:
   enabled: false
