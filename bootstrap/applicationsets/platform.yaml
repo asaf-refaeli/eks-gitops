@@ -37,8 +37,8 @@ spec:
         server: https://kubernetes.default.svc
         # Folder name is the Application name; the namespace is that name minus
         # a "-config" suffix. So a folder holding config for another app
-        # (sitelens-config) targets that app's namespace (sitelens), while every
-        # other folder is unaffected — none of them ends in "-config".
+        # (e.g. myapp-config) targets that app's namespace (myapp), while every
+        # other folder is unaffected.
         # Each kustomization.yaml also pins its own namespace, belt and braces.
         namespace: '{{ trimSuffix "-config" .path.basename }}'
       syncPolicy:
