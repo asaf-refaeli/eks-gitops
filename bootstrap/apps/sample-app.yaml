@@ -16,7 +16,7 @@ spec:
   sources:
     # The chart, versioned with the app code.
     - repoURL: https://github.com/asaf-refaeli/sample-nodejs.git
-      targetRevision: sample-app-v0.1.2
+      targetRevision: sample-app-v0.2.0
       path: chart
       helm:
         releaseName: sample-app
