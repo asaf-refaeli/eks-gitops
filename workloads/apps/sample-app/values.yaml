@@ -4,7 +4,7 @@
 image:
   repository: 498814651067.dkr.ecr.il-central-1.amazonaws.com/devops-task/sample-app
   # Set by CI to the git SHA of the built commit. Empty until the first CI build.
-  tag: "1.2.0"
+  tag: "1.2.1"
 ingress:
   enabled: true
   # IngressClass from the AWS Load Balancer Controller. Its IngressClassParams
